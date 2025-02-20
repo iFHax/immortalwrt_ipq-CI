@@ -79,3 +79,5 @@ function generate_config() {
   cat_kernel_config "target/linux/qualcommax/${target}/config-default"
 }
 generate_config
+echo "当前目录: $(pwd)"
+ls -l target/linux/qualcommax/image/  # 确认文件是否存在

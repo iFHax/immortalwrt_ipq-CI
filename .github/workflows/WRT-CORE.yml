@@ -161,6 +161,7 @@ jobs:
 
       - name: Custom Settings
         run: |
+          cd ./wrt/
           . $GITHUB_WORKSPACE/Scripts/function.sh
           cd ./wrt/
 

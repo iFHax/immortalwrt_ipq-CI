@@ -225,22 +225,16 @@ jobs:
           tag_name: ${{env.WRT_CONFIG}}_${{env.WRT_VER}}_${{env.WRT_DATE}}
           files: ./wrt/upload/*.*
           body: |
-            这是个平台固件包，内含多个设备！
-            请注意选择你需要的设备固件！
-            不要问，刷就完事了！
-
-            全系带开源硬件加速，别问了！
-
-            内核版本：${{env.WRT_KVER}}
-
-            WIFI名称：${{env.WRT_SSID}}
-            WIFI密码：${{env.WRT_WORD}}
-
-            源码：${{env.WRT_REPO}}
-            分支：${{env.WRT_BRANCH}}
-            提交：${{env.WRT_HASH}}
-
-            配置：${{env.WRT_CONFIG}}
-            平台：${{env.WRT_TARGET}}
-            地址：${{env.WRT_IP}}
-            密码：${{env.WRT_PW}}
+            **This is OpenWrt Firmware for ${{env.WRT_BRANCH}}**
+            ### 📒 固件信息
+            - 这是带WIFI以及NSS的6.6内核固件，默认主题为Argon；该固件在ImmortalWrt的基础上，添加了额外的软件包cpufreq、upnp、autoreboot、diskman、homeproxy、ua2f、daed，并添加了若干工具。
+            - 💻 这是 ${{env.WRT_TARGET}} 平台使用的 OpenWrt 固件
+            - ⚽ 固件源码: ${{env.WRT_REPO}}
+            - 💝 源码分支: ${{env.WRT_BRANCH}}
+            - 🌐 默认地址: ${{env.WRT_IP}}
+            - 🔑 默认密码: ${{env.WRT_PW}}
+            - 🌐 WIFI名称：${{env.WRT_SSID}}
+            - 🔑 WIFI密码：${{env.WRT_WORD}}
+            ### 🧊 固件版本
+            - 固件内核版本：**${{env.WRT_KVER}}**
+            - 固件编译前最后一次➦[主源码]提交：${{env.WRT_HASH}}

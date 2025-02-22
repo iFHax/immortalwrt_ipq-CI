@@ -222,7 +222,7 @@ jobs:
       - name: Release Firmware
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{env.WRT_CONFIG}}_${{env.WRT_VER}}_${{env.WRT_DATE}}
+          tag_name: R${{env.WRT_DATE}}_${{env.WRT_VER}}_for_${{env.WRT_CONFIG}}
           files: ./wrt/upload/*.*
           body: |
             **This is OpenWrt Firmware for ${{env.WRT_BRANCH}}**

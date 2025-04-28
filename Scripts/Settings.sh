@@ -43,6 +43,7 @@ if [ -n "$WRT_PACKAGE" ]; then
 fi
 
 #高通平台调整
+DTS_PATH="./target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/"
 if [[ $WRT_TARGET == *"QUALCOMMAX"* ]]; then
 	#取消nss相关feed
 	echo "CONFIG_FEED_nss_packages=n" >> ./.config
@@ -51,6 +52,7 @@ if [[ $WRT_TARGET == *"QUALCOMMAX"* ]]; then
 	echo "CONFIG_NSS_FIRMWARE_VERSION_11_4=n" >> ./.config
 	echo "CONFIG_NSS_FIRMWARE_VERSION_12_5=y" >> ./.config
 fi
+
 
 #编译器优化
 if [[ $WRT_TARGET != *"X86"* ]]; then

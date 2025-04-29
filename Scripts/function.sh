@@ -109,4 +109,3 @@ function generate_config() {
 }
 generate_config
 echo "当前目录: $(pwd)"
-ls -l target/linux/qualcommax/image/  # 确认文件是否存在

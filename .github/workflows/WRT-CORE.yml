@@ -1,5 +1,5 @@
 #云编译公用核心
-name: WRT-CORE
+name: WRT-CORE-TEST
 
 on:
   workflow_call:
@@ -40,7 +40,12 @@ on:
       WRT_TEST:
         required: false
         type: string
-
+      CI_NAME:
+        required: false
+        type: string
+      WRT_ARCH:
+        required: false
+        type: string
 env:
   GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
   WRT_CONFIG: ${{inputs.WRT_CONFIG}}
@@ -54,12 +59,36 @@ env:
   WRT_BRANCH: ${{inputs.WRT_BRANCH}}
   WRT_PACKAGE: ${{inputs.WRT_PACKAGE}}
   WRT_TEST: ${{inputs.WRT_TEST}}
+  WRT_DIR: 'wrt'
+  CI_NAME: ${{inputs.CI_NAME}}
+  WRT_ARCH: ${{inputs.WRT_ARCH}}
 
 jobs:
   core:
     name: ${{inputs.WRT_SOURCE}}
     runs-on: ubuntu-22.04
     steps:
+      - name: "Optimize Disk Space"
+        uses: "hugoalh/disk-space-optimizer-ghaction@v0.8.1"
+        with:
+          operate_sudo: "True"
+          general_include: ".+"
+          general_exclude: |-
+            ^GCC$
+            ^G\+\+$
+            Clang
+            LLVM
+          docker_include: ".+"
+          docker_prune: "True"
+          docker_clean: "True"
+          apt_prune: "True"
+          apt_clean: "True"
+          homebrew_prune: "True"
+          homebrew_clean: "True"
+          npm_prune: "True"
+          npm_clean: "True"
+          os_swap: "True"
+
       - name: Checkout Projects
         uses: actions/checkout@main
 
@@ -77,20 +106,21 @@ jobs:
           sudo -E systemctl daemon-reload
           sudo -E timedatectl set-timezone "Asia/Shanghai"
 
-          sudo mkdir -p /mnt/build_wrt
-          sudo chown $USER:$USER /mnt/build_wrt
-          sudo ln -s /mnt/build_wrt $GITHUB_WORKSPACE/wrt
 
       - name: Initialization Values
         run: |
           export WRT_DATE=$(TZ=UTC-8 date +"%y.%m.%d_%H.%M.%S")
           export WRT_CI=$(basename $GITHUB_WORKSPACE)
           export WRT_VER=$(echo $WRT_REPO | cut -d '/' -f 5-)-$WRT_BRANCH
-          export WRT_TARGET=$(grep -m 1 -oP '^CONFIG_TARGET_\K[\w]+(?=\=y)' ./Config/$WRT_CONFIG.txt | tr '[:lower:]' '[:upper:]')
-
+          export WRT_TARGET=$(sed -n "1{s/^#//;s/\r$//;p;q}" $GITHUB_WORKSPACE/Config/$WRT_CONFIG.txt)
+          
+          [[ -z $WRT_ARCH ]] && {
+            export WRT_ARCH=$(sed -n 's/.*_DEVICE_\(.*\)_DEVICE_.*/\1/p' $GITHUB_WORKSPACE/Config/$WRT_CONFIG.txt | head -n 1)
+            echo "WRT_ARCH=$WRT_ARCH" >> $GITHUB_ENV
+          }
           echo "WRT_DATE=$WRT_DATE" >> $GITHUB_ENV
           echo "WRT_CI=$WRT_CI" >> $GITHUB_ENV
-          echo "WRT_VER=$WRT_VER" >> $GITHUB_ENV
+          echo "WRT_VER=$WRT_VER" >> $GITHUB_ENV  
           echo "WRT_TARGET=$WRT_TARGET" >> $GITHUB_ENV
 
       - name: Clone Code
@@ -114,36 +144,25 @@ jobs:
         if: env.WRT_TEST != 'true'
         uses: actions/cache@main
         with:
-          key: ${{env.WRT_CONFIG}}-${{env.WRT_VER}}-${{env.WRT_HASH}}
-          restore-keys: ${{env.WRT_CONFIG}}-${{env.WRT_VER}}
+          key: ${{ env.WRT_ARCH }}-${{env.WRT_VER}}-${{env.WRT_HASH}}
+          restore-keys: |
+            ${{ env.WRT_ARCH }}-${{env.WRT_VER}}
+            ${{ env.WRT_ARCH }}
           path: |
             ./wrt/.ccache
             ./wrt/staging_dir/host*
             ./wrt/staging_dir/tool*
 
-      - name: Update Caches
-        if: env.WRT_TEST != 'true'
+      - if: ${{ steps.check-cache.outputs.cache-hit != '' }}
+        name: Hit Caches
+        continue-on-error: true
         run: |
-          if [ -d "./wrt/staging_dir" ]; then
-            find "./wrt/staging_dir" -type d -name "stamp" -not -path "*target*" | while read -r DIR; do
+          find "./wrt/staging_dir" -type d -name "stamp" -not -path "*target*" | while read -r DIR; do
               find "$DIR" -type f -exec touch {} +
-            done
+          done
 
-            mkdir -p ./wrt/tmp && echo "1" > ./wrt/tmp/.build
-
-            echo "toolchain skiped done!"
-          else
-            echo "caches missed!"
-          fi
-
-          if ${{steps.check-cache.outputs.cache-hit != 'true'}}; then
-            CACHE_LIST=$(gh cache list --key "$WRT_CONFIG-$WRT_VER" | cut -f 1)
-            for CACHE_KEY in $CACHE_LIST; do
-              gh cache delete $CACHE_KEY
-            done
-
-            echo "caches cleanup done!"
-          fi
+          mkdir -p ./wrt/tmp && echo "1" > ./wrt/tmp/.build
+          echo "toolchain skiped done!"
 
       - name: Update Feeds
         run: |
@@ -161,21 +180,21 @@ jobs:
 
       - name: Custom Settings
         run: |
-          cd ./wrt/
           . $GITHUB_WORKSPACE/Scripts/function.sh
-
-          cat $GITHUB_WORKSPACE/Config/$WRT_CONFIG.txt $GITHUB_WORKSPACE/Config/GENERAL.txt >> .config
-
+          cd ./wrt/
+          
+          generate_config && cat .config
+          
           $GITHUB_WORKSPACE/Scripts/Settings.sh
 
-          make defconfig -j$(nproc) && make clean -j$(nproc)
+          make defconfig -j$(nproc)
 
       - name: Download Packages
         if: env.WRT_TEST != 'true'
         run: |
           cd ./wrt/
 
-          make download -j$(nproc)
+          make download -j$(nproc) || make download -j1 V=s 
 
       - name: Compile Firmware
         if: env.WRT_TEST != 'true'
@@ -207,17 +226,22 @@ jobs:
 
             find ./bin/targets/ -iregex ".*\(buildinfo\|json\|manifest\|sha256sums\|packages\)$" -exec rm -rf {} +
 
-            for FILE in $(find ./bin/targets/ -type f -iname "*$WRT_TARGET*") ; do
-              EXT=$(basename $FILE | cut -d '.' -f 2-)
-              NAME=$(basename $FILE | cut -d '.' -f 1 | grep -io "\($WRT_TARGET\).*")
-              NEW_FILE="$WRT_VER"_"$NAME"_"$WRT_DATE"."$EXT"
-              mv -f $FILE ./upload/$NEW_FILE
+            for FILE in $(find ./bin/targets/ -type f -iname "*$WRT_TARGET*.*") ; do
+                if [[ "$FILE" == *"initramfs"* ]]; then
+                  rm -f "$FILE"
+                  echo "delete $FILE"
+                else
+                  EXT=$(basename $FILE | cut -d '.' -f 2-)
+                  NAME=$(basename $FILE | cut -d '.' -f 1 | grep -io "\($WRT_TARGET\).*")
+                  NEW_FILE="$WRT_TARGET"_"$NAME"_"$WRT_DATE"."$EXT"
+                  mv -f $FILE ./upload/$NEW_FILE                
+                fi
             done
-
             find ./bin/targets/ -type f -exec mv -f {} ./upload/ \;
           fi
 
           echo "WRT_KVER=${KVER:-none}" >> $GITHUB_ENV
+
 
       - name: Release Firmware
         uses: softprops/action-gh-release@v2
@@ -227,7 +251,7 @@ jobs:
           body: |
             **This is OpenWrt Firmware for ${{env.WRT_BRANCH}}**
             ### 📒 固件信息
-            - 这是带WIFI以及NSS的6.6内核固件，默认主题为Argon；该固件在ImmortalWrt的基础上，添加了额外的软件包cpufreq、upnp、autoreboot、diskman、homeproxy、ua2f、daed，并添加了若干工具。
+            - 这是带WIFI以及NSS的固件，默认主题为Argon；该固件添加了额外的软件包cpufreq、upnp、autoreboot、diskman、homeproxy、ua2f、daed，并添加了若干工具。
             - 💻 这是 ${{env.WRT_TARGET}} 平台使用的 OpenWrt 固件
             - ⚽ 固件源码: ${{env.WRT_REPO}}
             - 💝 源码分支: ${{env.WRT_BRANCH}}

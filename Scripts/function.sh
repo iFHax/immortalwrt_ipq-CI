@@ -51,11 +51,39 @@ CONFIG_PACKAGE_kmod-xdp-sockets-diag=y
 EOF
 }
 
+function set_nss_driver() {
+  cat >> $1 <<EOF
+#NSS驱动相关
+CONFIG_NSS_FIRMWARE_VERSION_11_4=n
+# CONFIG_NSS_FIRMWARE_VERSION_12_5 is not set
+CONFIG_NSS_FIRMWARE_VERSION_12_2=y
+CONFIG_PACKAGE_kmod-qca-nss-dp=y
+CONFIG_PACKAGE_kmod-qca-nss-drv=y
+CONFIG_PACKAGE_kmod-qca-nss-drv-bridge-mgr=y
+CONFIG_PACKAGE_kmod-qca-nss-drv-vlan=y
+CONFIG_PACKAGE_kmod-qca-nss-drv-igs=y
+#CONFIG_PACKAGE_kmod-qca-nss-drv-map-t=y
+CONFIG_PACKAGE_kmod-qca-nss-drv-pppoe=y
+CONFIG_PACKAGE_kmod-qca-nss-drv-pptp=y
+CONFIG_PACKAGE_kmod-qca-nss-drv-qdisc=y
+CONFIG_PACKAGE_kmod-qca-nss-ecm=y
+CONFIG_PACKAGE_kmod-qca-nss-macsec=y
+CONFIG_PACKAGE_kmod-qca-nss-drv-l2tpv2=y
+CONFIG_PACKAGE_kmod-qca-nss-drv-lag-mgr=y
+EOF
+}
 
 function kernel_version() {
   echo $(sed -n 's/^KERNEL_PATCHVER:=\(.*\)/\1/p' target/linux/qualcommax/Makefile)
 }
 
+#开启内存回收补丁
+function enable_skb_recycler() {
+  cat >> $1 <<EOF
+CONFIG_KERNEL_SKB_RECYCLER=y
+CONFIG_KERNEL_SKB_RECYCLER_MULTI_CPU=y
+EOF
+}
 
 function set_kernel_size() {
   #修改jdc ax1800 pro 的内核大小为12M
@@ -73,6 +101,7 @@ function generate_config() {
   cat $GITHUB_WORKSPACE/Config/${WRT_CONFIG}.txt $GITHUB_WORKSPACE/Config/GENERAL.txt  > $config_file
   local target=$(echo $WRT_ARCH | cut -d'_' -f2)
   #增加ebpf
+  set_nss_driver $config_file
   cat_ebpf_config $config_file
   set_kernel_size
   #增加内核选项

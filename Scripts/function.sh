@@ -66,15 +66,6 @@ CONFIG_PACKAGE_kmod-usb-net-rndis=y
 CONFIG_PACKAGE_kmod-usb-net-rtl8150=y
 CONFIG_PACKAGE_kmod-usb-net-rtl8152=y
 EOF
-#6.12内核不包含以下驱动
-if echo "$CI_NAME" | grep -v "6.12" > /dev/null; then
-  cat >> $1 <<EOF
-CONFIG_PACKAGE_kmod-usb-net-qmi-wwan=y
-CONFIG_PACKAGE_kmod-usb-net-qmi-wwan-fibocom=y
-CONFIG_PACKAGE_kmod-usb-net-qmi-wwan-quectel=y
-EOF
-fi
-
 }
 
 function set_nss_driver() {

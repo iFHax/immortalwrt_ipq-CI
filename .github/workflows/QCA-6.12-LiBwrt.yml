@@ -24,7 +24,6 @@ on:
 #CI权限
 permissions: write-all
 
-
 #CI任务
 jobs:
   config:
@@ -33,7 +32,7 @@ jobs:
       fail-fast: false
       #max-parallel: 3
       matrix:
-        CONFIG: [IPQ60XX,IPQ807X]
+        CONFIG: [IPQ807X,IPQ60XX]
         SOURCE: [LiBwrt/openwrt-6.x]
         BRANCH: [kernel-6.12]
 

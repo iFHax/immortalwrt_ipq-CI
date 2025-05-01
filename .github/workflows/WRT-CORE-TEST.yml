@@ -1,5 +1,5 @@
 #云编译公用核心
-name: WRT-CORE
+name: WRT-CORE-TEST
 
 on:
   workflow_call:
@@ -68,38 +68,30 @@ jobs:
     name: ${{inputs.WRT_SOURCE}}
     runs-on: ubuntu-22.04
     steps:
-      - name: Install BC
-        env:
-          DEBIAN_FRONTEND: noninteractive
-        run: |
-          sudo -E apt -yqq install bc
-
-      - name: Free Disk Space
-        uses: endersonmenezes/free-disk-space@v2
+      - name: "Optimize Disk Space"
+        uses: "hugoalh/disk-space-optimizer-ghaction@v0.8.1"
         with:
-          remove_android: true
-          remove_dotnet: true
-          remove_haskell: true
-          remove_tool_cache: true
-          remove_swap: true
-          remove_packages: "azure-cli google-cloud-cli microsoft-edge-stable google-chrome-stable firefox postgresql* temurin-* *llvm* mysql* dotnet-sdk-*"
-          remove_packages_one_command: true
-          remove_folders: "/usr/share/swift /usr/share/miniconda /usr/share/az* /usr/share/glade* /usr/local/share/chromium /usr/local/share/powershell"
-          testing: false
-
-#      - name: Freeing up disk space
-#        uses: easimon/maximize-build-space@master
-#        with:
-#          root-reserve-mb: 10240
-#          swap-size-mb: 1024
-#          remove-dotnet: 'true'
-#          remove-android: 'true'
-#          remove-haskell: 'true'
-#          remove-codeql: 'true'
-#          remove-docker-images: 'true'
+          operate_sudo: "True"
+          general_include: ".+"
+          general_exclude: |-
+            ^GCC$
+            ^G\+\+$
+            Clang
+            LLVM
+          docker_include: ".+"
+          docker_prune: "True"
+          docker_clean: "True"
+          apt_prune: "True"
+          apt_clean: "True"
+          homebrew_prune: "True"
+          homebrew_clean: "True"
+          npm_prune: "True"
+          npm_clean: "True"
+          os_swap: "True"
 
       - name: Checkout Projects
         uses: actions/checkout@main
+
       - name: Initialization Environment
         env:
           DEBIAN_FRONTEND: noninteractive
@@ -113,24 +105,22 @@ jobs:
           sudo bash -c 'bash <(curl -sL https://build-scripts.immortalwrt.org/init_build_environment.sh)'
           sudo -E systemctl daemon-reload
           sudo -E timedatectl set-timezone "Asia/Shanghai"
-#          sudo chown $USER:$GROUPS $GITHUB_WORKSPACE
-#          sudo mkdir -p /mnt/build_wrt
-#          sudo chown $USER:$USER /mnt/build_wrt
-#          sudo ln -s /mnt/build_wrt $GITHUB_WORKSPACE/wrt
+
 
       - name: Initialization Values
         run: |
           export WRT_DATE=$(TZ=UTC-8 date +"%y.%m.%d_%H.%M.%S")
           export WRT_CI=$(basename $GITHUB_WORKSPACE)
           export WRT_VER=$(echo $WRT_REPO | cut -d '/' -f 5-)-$WRT_BRANCH
-          export WRT_TARGET=$(grep -m 1 -oP '^CONFIG_TARGET_\K[\w]+(?=\=y)' ./Config/$WRT_CONFIG.txt | tr '[:lower:]' '[:upper:]')
+          export WRT_TARGET=$(sed -n "1{s/^#//;s/\r$//;p;q}" $GITHUB_WORKSPACE/Config/$WRT_CONFIG.txt)
+          
           [[ -z $WRT_ARCH ]] && {
             export WRT_ARCH=$(sed -n 's/.*_DEVICE_\(.*\)_DEVICE_.*/\1/p' $GITHUB_WORKSPACE/Config/$WRT_CONFIG.txt | head -n 1)
             echo "WRT_ARCH=$WRT_ARCH" >> $GITHUB_ENV
           }
           echo "WRT_DATE=$WRT_DATE" >> $GITHUB_ENV
           echo "WRT_CI=$WRT_CI" >> $GITHUB_ENV
-          echo "WRT_VER=$WRT_VER" >> $GITHUB_ENV
+          echo "WRT_VER=$WRT_VER" >> $GITHUB_ENV  
           echo "WRT_TARGET=$WRT_TARGET" >> $GITHUB_ENV
 
       - name: Clone Code
@@ -138,6 +128,12 @@ jobs:
           git clone --depth=1 --single-branch --branch $WRT_BRANCH $WRT_REPO ./wrt/
 
           cd ./wrt/ && echo "WRT_HASH=$(git log -1 --pretty=format:'%h')" >> $GITHUB_ENV
+
+          # GitHub Action 移除国内下载源
+          PROJECT_MIRRORS_FILE="./scripts/projectsmirrors.json"
+          if [ -f "$PROJECT_MIRRORS_FILE" ]; then
+            sed -i '/.cn\//d; /tencent/d; /aliyun/d' "$PROJECT_MIRRORS_FILE"
+          fi
 
       - name: Check Scripts
         run: |
@@ -199,7 +195,7 @@ jobs:
         run: |
           cd ./wrt/
 
-          make download -j$(nproc)
+          make download -j$(nproc) || make download -j1 V=s 
 
       - name: Compile Firmware
         if: env.WRT_TEST != 'true'
@@ -238,7 +234,7 @@ jobs:
                 else
                   EXT=$(basename $FILE | cut -d '.' -f 2-)
                   NAME=$(basename $FILE | cut -d '.' -f 1 | grep -io "\($WRT_TARGET\).*")
-                  NEW_FILE="$WRT_VER"_"$WRT_CONFIG"_"$NAME"_"$WRT_DATE"."$EXT"
+                  NEW_FILE="$WRT_TARGET"_"$NAME"_"$WRT_DATE"."$EXT"
                   mv -f $FILE ./upload/$NEW_FILE                
                 fi
             done

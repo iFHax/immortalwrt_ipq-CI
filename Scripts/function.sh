@@ -51,6 +51,32 @@ CONFIG_PACKAGE_kmod-xdp-sockets-diag=y
 EOF
 }
 
+function cat_usb_net() {
+  cat >> $1 <<EOF
+#USB CPE Driver
+CONFIG_PACKAGE_kmod-usb-net=y
+CONFIG_PACKAGE_kmod-usb-net-cdc-eem=y
+CONFIG_PACKAGE_kmod-usb-net-cdc-ether=y
+CONFIG_PACKAGE_kmod-usb-net-cdc-mbim=y
+CONFIG_PACKAGE_kmod-usb-net-cdc-ncm=y
+CONFIG_PACKAGE_kmod-usb-net-cdc-subset=y
+CONFIG_PACKAGE_kmod-usb-net-huawei-cdc-ncm=y
+CONFIG_PACKAGE_kmod-usb-net-ipheth=y
+CONFIG_PACKAGE_kmod-usb-net-rndis=y
+CONFIG_PACKAGE_kmod-usb-net-rtl8150=y
+CONFIG_PACKAGE_kmod-usb-net-rtl8152=y
+EOF
+#6.12内核不包含以下驱动
+if echo "$CI_NAME" | grep -v "6.12" > /dev/null; then
+  cat >> $1 <<EOF
+CONFIG_PACKAGE_kmod-usb-net-qmi-wwan=y
+CONFIG_PACKAGE_kmod-usb-net-qmi-wwan-fibocom=y
+CONFIG_PACKAGE_kmod-usb-net-qmi-wwan-quectel=y
+EOF
+fi
+
+}
+
 function set_nss_driver() {
   cat >> $1 <<EOF
 #NSS驱动相关
@@ -70,20 +96,14 @@ CONFIG_PACKAGE_kmod-qca-nss-ecm=y
 CONFIG_PACKAGE_kmod-qca-nss-macsec=y
 CONFIG_PACKAGE_kmod-qca-nss-drv-l2tpv2=y
 CONFIG_PACKAGE_kmod-qca-nss-drv-lag-mgr=y
+CONFIG_PACKAGE_sqm-scripts-nss=y
+CONFIG_PACKAGE_kmod-qca-nss-crypto=y
 EOF
 }
-
 function kernel_version() {
   echo $(sed -n 's/^KERNEL_PATCHVER:=\(.*\)/\1/p' target/linux/qualcommax/Makefile)
 }
 
-#开启内存回收补丁
-function enable_skb_recycler() {
-  cat >> $1 <<EOF
-CONFIG_KERNEL_SKB_RECYCLER=y
-CONFIG_KERNEL_SKB_RECYCLER_MULTI_CPU=y
-EOF
-}
 
 function set_kernel_size() {
   #修改jdc ax1800 pro 的内核大小为12M
@@ -93,19 +113,33 @@ function set_kernel_size() {
   sed -i "/^define Device\/jdcloud_re-cs-07/,/^endef/ { /KERNEL_SIZE := 6144k/s//KERNEL_SIZE := 12288k/ }" $image_file
   sed -i "/^define Device\/redmi_ax5-jdcloud/,/^endef/ { /KERNEL_SIZE := 6144k/s//KERNEL_SIZE := 12288k/ }" $image_file
 }
-
+#开启内存回收补丁
+function enable_skb_recycler() {
+  cat >> $1 <<EOF
+CONFIG_KERNEL_SKB_RECYCLER=y
+CONFIG_KERNEL_SKB_RECYCLER_MULTI_CPU=y
+EOF
+}
 
 function generate_config() {
   config_file=".config"
   #如配置文件已存在
   cat $GITHUB_WORKSPACE/Config/${WRT_CONFIG}.txt $GITHUB_WORKSPACE/Config/GENERAL.txt  > $config_file
   local target=$(echo $WRT_ARCH | cut -d'_' -f2)
-  #增加ebpf
+
+  #删除wifi依赖
   set_nss_driver $config_file
+  cat_usb_net $config_file
+  #增加ebpf
   cat_ebpf_config $config_file
+  enable_skb_recycler $config_file
   set_kernel_size
   #增加内核选项
   cat_kernel_config "target/linux/qualcommax/${target}/config-default"
 }
-generate_config
-echo "当前目录: $(pwd)"
+
+
+
+
+
+

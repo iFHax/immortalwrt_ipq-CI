@@ -243,22 +243,22 @@ jobs:
 
           echo "WRT_KVER=${KVER:-none}" >> $GITHUB_ENV
 
-          - name: Release Firmware
-          uses: softprops/action-gh-release@v2
-          with:
-            tag_name: R${{env.WRT_DATE}}_${{env.WRT_VER}}_for_${{env.WRT_CONFIG}}
-            files: ./wrt/upload/*.*
-            body: |
-              **This is OpenWrt Firmware for ${{env.WRT_BRANCH}}**
-              ### 📒 固件信息
-              - 这是带WIFI以及NSS的固件，默认主题为Argon；该固件添加了额外的软件包cpufreq、upnp、autoreboot、diskman、homeproxy、ua2f、daed，并添加了若干工具。
-              - 💻 这是 ${{env.WRT_TARGET}} 平台使用的 OpenWrt 固件
-              - ⚽ 固件源码: ${{env.WRT_REPO}}
-              - 💝 源码分支: ${{env.WRT_BRANCH}}
-              - 🌐 默认地址: ${{env.WRT_IP}}
-              - 🔑 默认密码: ${{env.WRT_PW}}
-              - 🌐 WIFI名称：${{env.WRT_SSID}}
-              - 🔑 WIFI密码：${{env.WRT_WORD}}
-              ### 🧊 固件版本
-              - 固件内核版本：**${{env.WRT_KVER}}**
-              - 固件编译前最后一次➦[主源码]提交：${{env.WRT_HASH}}
+      - name: Release Firmware
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: R${{env.WRT_DATE}}_${{env.WRT_VER}}_for_${{env.WRT_CONFIG}}
+          files: ./wrt/upload/*.*
+          body: |
+            **This is OpenWrt Firmware for ${{env.WRT_BRANCH}}**
+            ### 📒 固件信息
+            - 这是带WIFI以及NSS的固件，默认主题为Argon；该固件添加了额外的软件包cpufreq、upnp、autoreboot、diskman、homeproxy、ua2f、daed，并添加了若干工具。
+            - 💻 这是 ${{env.WRT_TARGET}} 平台使用的 OpenWrt 固件
+            - ⚽ 固件源码: ${{env.WRT_REPO}}
+            - 💝 源码分支: ${{env.WRT_BRANCH}}
+            - 🌐 默认地址: ${{env.WRT_IP}}
+            - 🔑 默认密码: ${{env.WRT_PW}}
+            - 🌐 WIFI名称：${{env.WRT_SSID}}
+            - 🔑 WIFI密码：${{env.WRT_WORD}}
+            ### 🧊 固件版本
+            - 固件内核版本：**${{env.WRT_KVER}}**
+            - 固件编译前最后一次➦[主源码]提交：${{env.WRT_HASH}}

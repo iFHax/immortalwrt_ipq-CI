@@ -52,7 +52,7 @@ EOF
 }
 
 function cat_usb_net() {
-  cat >> $1 <<EOF
+  cat >> "$1" <<EOF
 #USB CPE Driver
 CONFIG_PACKAGE_kmod-usb-net=y
 CONFIG_PACKAGE_kmod-usb-net-cdc-eem=y
@@ -65,24 +65,32 @@ CONFIG_PACKAGE_kmod-usb-net-ipheth=y
 CONFIG_PACKAGE_kmod-usb-net-rndis=y
 CONFIG_PACKAGE_kmod-usb-net-rtl8150=y
 CONFIG_PACKAGE_kmod-usb-net-rtl8152=y
+CONFIG_PACKAGE_luci-proto-mbim=y
+CONFIG_PACKAGE_luci-proto-ncm=y
+CONFIG_PACKAGE_luci-proto-modemmanager=y
 EOF
-#6.12内核不包含以下驱动
-if echo "$CI_NAME" | grep -v "6.12" > /dev/null; then
-  cat >> $1 <<EOF
+
+# 只有内核版本为6.6时才追加下面这些驱动配置
+if echo "$CI_NAME" | grep -q "6.6" > /dev/null; then
+  cat >> "$1" <<EOF
+CONFIG_PACKAGE_luci-app-qmodem=y
+CONFIG_PACKAGE_luci-app-qmodem-sms=y
+CONFIG_PACKAGE_luci-proto-qmi=y
+CONFIG_PACKAGE_luci-app-qmodem=y
+CONFIG_PACKAGE_luci-app-qmodem-sms=y
 CONFIG_PACKAGE_kmod-usb-net-qmi-wwan=y
 CONFIG_PACKAGE_kmod-usb-net-qmi-wwan-fibocom=y
 CONFIG_PACKAGE_kmod-usb-net-qmi-wwan-quectel=y
 EOF
 fi
-
 }
+
 
 function set_nss_driver() {
   cat >> $1 <<EOF
 #NSS驱动相关
 CONFIG_NSS_FIRMWARE_VERSION_11_4=n
-# CONFIG_NSS_FIRMWARE_VERSION_12_5 is not set
-CONFIG_NSS_FIRMWARE_VERSION_12_2=y
+CONFIG_NSS_FIRMWARE_VERSION_12_5=y
 CONFIG_PACKAGE_kmod-qca-nss-dp=y
 CONFIG_PACKAGE_kmod-qca-nss-drv=y
 CONFIG_PACKAGE_kmod-qca-nss-drv-bridge-mgr=y
